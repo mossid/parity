@@ -27,6 +27,10 @@ impl TransactionQueue {
 		}
 	}
 
+	pub fn set_verifier_options(&self, options: verifier::Options) {
+		*self.options.write() = options;
+	}
+
 	pub fn import<C: client::Client>(
 		&self,
 		client: C,
@@ -55,6 +59,7 @@ impl TransactionQueue {
 		client: C,
 		block_number: u64,
 		current_timestamp: u64,
+		// TODO [ToDr] Support nonce_cap
 	) -> PendingReader<(ready::Condition, ready::State<C>)> {
 		let pending_readiness = ready::Condition::new(block_number, current_timestamp);
 		let state_readiness = ready::State::new(client);
@@ -74,12 +79,15 @@ impl TransactionQueue {
 		debug!(target: "txqueue", "Removed {} stalled transactions.", removed);
 	}
 
-	pub fn remove(
+	pub fn remove<'a, T: IntoIterator<Item = &'a H256>>(
 		&self,
-		hash: &H256,
+		hashes: T,
 		is_invalid: bool,
 	) {
-		self.pool.write().remove(hash, is_invalid);
+		let mut pool = self.pool.write();
+		for hash in hashes {
+			pool.remove(hash, is_invalid);
+		}
 	}
 }
 
